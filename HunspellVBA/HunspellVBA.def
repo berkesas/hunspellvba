@@ -1,0 +1,14 @@
+EXPORTS
+   AddDictionary=_AddDictionary@8
+   AddWord=_AddWord@8
+   CheckSpelling=_CheckSpelling@8
+   FreeItems=_FreeItems@8
+   GetMisspellings=_GetMisspellings@12
+   GetSuffixSuggestions=_GetSuffixSuggestions@12
+   GetSuggestions=_GetSuggestions@12
+   HunspellFree=_HunspellFree@4
+   HunspellInit=_HunspellInit@12
+
+      
+   
+   
