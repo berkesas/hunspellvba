@@ -31,12 +31,13 @@
 #include <Windows.h>
 #include <sstream>
 #include "utf8.h"
+#include <stdexcept>
 
 void __stdcall HunspellInit(Hunspell** hunspell, const char* affixFilePath, const char* dictionaryFilePath) {
 	if (hunspell == nullptr || affixFilePath == nullptr || dictionaryFilePath == nullptr) {
-		#ifdef _DEBUG
+#ifdef _DEBUG
 		std::cerr << "Error: Null pointer argument." << std::endl;
-		#endif
+#endif
 		throw std::invalid_argument("Null pointer argument.");
 	}
 
@@ -44,22 +45,54 @@ void __stdcall HunspellInit(Hunspell** hunspell, const char* affixFilePath, cons
 		*hunspell = new Hunspell(affixFilePath, dictionaryFilePath);
 	}
 	catch (const std::exception& e) {
-		#ifdef _DEBUG
+#ifdef _DEBUG
 		std::cerr << "Hunspell initialization failed: " << e.what() << std::endl;
-		#endif
+#endif
 		* hunspell = nullptr;
 	}
 }
 
 bool __stdcall CheckSpelling(Hunspell* hunspell, BSTR word) {
-	std::wstring wstr(word, SysStringLen(word));
+	if (hunspell == nullptr) {
+		std::cerr << "Error: Null pointer passed for Hunspell instance." << std::endl;
+		return false;
+	}
 
-	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), NULL, 0, NULL, NULL);
-	std::string utf8str(size_needed, 0);
-	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), &utf8str[0], size_needed, NULL, NULL);
+	if (word == nullptr) {
+		std::cerr << "Error: Null pointer passed for word." << std::endl;
+		return false;
+	}
 
-	return hunspell->spell(utf8str);
+	try {
+		std::wstring wstr(word, SysStringLen(word));
+
+		int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), NULL, 0, NULL, NULL);
+		if (size_needed <= 0) {
+			std::cerr << "Error: WideCharToMultiByte failed to calculate size." << std::endl;
+			return false;
+		}
+
+		std::vector<char> utf8_buffer(size_needed);
+		int result = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), utf8_buffer.data(), size_needed, NULL, NULL);
+		if (result == 0) {
+			std::cerr << "Error: WideCharToMultiByte conversion failed." << std::endl;
+			return false;
+		}
+
+		std::string utf8str(utf8_buffer.begin(), utf8_buffer.end());
+
+		return hunspell->spell(utf8str);
+	}
+	catch (const std::exception& ex) {
+		std::cerr << "Exception: " << ex.what() << std::endl;
+		return false;
+	}
+	catch (...) {
+		std::cerr << "Unknown error occurred during CheckSpelling." << std::endl;
+		return false;
+	}
 }
+
 
 
 void __stdcall HunspellFree(Hunspell* hunspell) {
@@ -70,18 +103,77 @@ void __stdcall HunspellFree(Hunspell* hunspell) {
 }
 
 int __stdcall AddDictionary(Hunspell* hunspell, const char* dictionaryFilePath) {
-	return hunspell->add_dic(dictionaryFilePath);
+	if (hunspell == nullptr) {
+		std::cerr << "Error: Null pointer passed for Hunspell instance." << std::endl;
+		return -1;
+	}
+
+	if (dictionaryFilePath == nullptr) {
+		std::cerr << "Error: Null pointer passed for dictionary file path." << std::endl;
+		return -2;
+	}
+
+	try {
+		int result = hunspell->add_dic(dictionaryFilePath);
+
+		if (result != 0) {
+			std::cerr << "Error: Failed to add dictionary. Result code: " << result << std::endl;
+			return result;
+		}
+
+		return 0;
+	}
+	catch (const std::exception& ex) {
+		std::cerr << "Exception: " << ex.what() << std::endl;
+		return -3;
+	}
+	catch (...) {
+		std::cerr << "Unknown error occurred while adding dictionary." << std::endl;
+		return -4;
+	}
 }
 
 int __stdcall AddWord(Hunspell* hunspell, BSTR word) {
-	std::wstring wstr(word, SysStringLen(word));
+	if (hunspell == nullptr) {
+		std::cerr << "Error: Null pointer passed for Hunspell instance." << std::endl;
+		return -1;
+	}
 
-	int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), NULL, 0, NULL, NULL);
-	std::string utf8str(size_needed, 0);
-	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), &utf8str[0], size_needed, NULL, NULL);
+	if (word == nullptr) {
+		std::cerr << "Error: Null pointer passed for word." << std::endl;
+		return -2;
+	}
 
-	return hunspell->add(utf8str);
+	try {
+		std::wstring wstr(word, SysStringLen(word));
+
+		int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), NULL, 0, NULL, NULL);
+		if (size_needed <= 0) {
+			std::cerr << "Error: WideCharToMultiByte failed to calculate size." << std::endl;
+			return -3;
+		}
+
+		std::vector<char> utf8_buffer(size_needed);
+		int result = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), utf8_buffer.data(), size_needed, NULL, NULL);
+		if (result == 0) {
+			std::cerr << "Error: WideCharToMultiByte conversion failed." << std::endl;
+			return -4;
+		}
+
+		std::string utf8str(utf8_buffer.begin(), utf8_buffer.end());
+
+		return hunspell->add(utf8str);
+	}
+	catch (const std::exception& ex) {
+		std::cerr << "Exception: " << ex.what() << std::endl;
+		return -5;
+	}
+	catch (...) {
+		std::cerr << "Unknown error occurred while adding word." << std::endl;
+		return -6;
+	}
 }
+
 
 void __stdcall FreeItems(const char** items, int count) {
 	for (int i = 0; i < count; ++i) {
